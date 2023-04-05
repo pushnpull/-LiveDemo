@@ -44,6 +44,9 @@ live_item_list=[]
 #dataframe of unique items
 live_item_df = None
 
+highest_user_id = None
+highest_item_id = None
+
 # Establish a connection to MySQL
 def cnxs():
     return mysql.connector.connect(user='root', password='root',
@@ -305,31 +308,42 @@ async def update_likes_fav():
 async def alluser():
     #since we have likes and fav data of deleted users we nedd to merge deleted users id to main users table
     
-    global users,likes_fav,usermap ,unique_users
+    global users,likes_fav,usermap ,unique_users ,highest_user_id
     alls=pd.concat([users['id'], likes_fav['user_id']], ignore_index=True)
     print(len(alls))
     alls = alls.drop_duplicates().reset_index(drop=True)
     print(len(alls))
     unique_users = alls.unique()
+    #we will use one more userid as a buffer for new users
+    highest_user_id = (unique_users.max() +1)
+    alls[alls.index.max()+1] = highest_user_id
+    print("----------------------------------", highest_user_id ,"-----------------------------------")
+    # alls = alls.append(pd.Series(highest_user_id),ignore_index=True)
+    #this them does not have highest_user_id data
     temp = alls.to_dict()
+    #updated unique_users with highest_user_id to feed dataset.fit
+    unique_users = alls.unique()
     usermap = {value: key for key, value in temp.items()}
 
  
 
 async def item_user_feature_list_and_datasetfit():
-    global audio,dataset,unique_users,live_item_list,live_item_df
+    global audio,dataset,unique_users,live_item_list,live_item_df,highest_item_id
 
     live_item_list=audio.loc[(audio['status'] == 1) & (audio['is_deleted'] == 0), 'id'].unique()
     live_item_df=audio.loc[(audio['status'] == 1) & (audio['is_deleted'] == 0), ['id','title','view_count','title','author','narrator']]
 # list of all item features ,apperently it is user features also
+    highest_item_id=audio['id'].max()
+    # highest_item_id = (live_item_df[id].max())
     print(len(live_item_list))
     for i in range(0,len(live_item_list),10):
         print(*live_item_list[i:i+10])
     
     item_features_list = audio['all'].apply(pd.Series).stack().reset_index(drop=True)
 
-    # 
-    dataset.fit(users=unique_users
+    #
+    
+    dataset.fit(users=unique_users 
             ,items=[x for x in range(audio['id'].max()+1)]
             ,item_features=item_features_list 
             ,user_features=item_features_list)
@@ -469,7 +483,9 @@ def calculate_vector(vector_list):
     weighted_avg = np.average(vector_list, axis=0, weights=weights[n])
     return weighted_avg    
 
-
+def redis_guard_for_new_items(item_id):
+    global highest_item_id
+    return True if item_id <= highest_item_id else False
 
 
 def fetch_knn(vector):
@@ -478,10 +494,16 @@ def fetch_knn(vector):
     indices_masked = indices[:, mask[indices[0]].astype(bool)]
     return indices_masked
 
-def ranking(indices,userid):
-    global usermap,model,item_features,user_features
-    predictions = model.predict(user_ids=usermap[userid], item_ids=indices,user_features=user_features,item_features=item_features)
+def predict_knn(indices,user_id):
+    global usermap,model,item_features,user_features,highest_user_id
+    predictions = model.predict(user_ids=usermap.get(user_id,usermap[int(highest_user_id)]), item_ids=indices,user_features=user_features,item_features=item_features)
     return predictions
+
+def predict_all_items_sorted(user_id):
+    global usermap,model,item_features,user_features,highest_user_id,live_item_list
+    predictions = model.predict(user_ids=usermap.get(user_id,usermap[int(highest_user_id)]), item_ids=live_item_list,user_features=user_features,item_features=item_features)
+    sorted_predictions = [int(y) for x,y in sorted(zip(predictions, live_item_list),reverse=True)]
+    return sorted_predictions
 
 def print_audio(indices,predictions):
     global audio
@@ -543,12 +565,12 @@ class Item(BaseModel):
 async def predict(item:Item):
     user_id= item.user_id
 
-    global model,user_features,item_features,usermap,live_item_list,live_item_df
+    global model,user_features,item_features,usermap,live_item_list,live_item_df,highest_user_id
     # try:
     #     predictions = model.predict(user_ids=usermap[user_id], item_ids=live_item_list,user_features=user_features,item_features=item_features)
     # except Exception as e:
     #     print(str(e))
-    predictions = model.predict(user_ids=usermap[user_id], item_ids=live_item_list,user_features=user_features,item_features=item_features)
+    predictions = model.predict(user_ids=usermap.get(user_id,highest_user_id), item_ids=live_item_list,user_features=user_features,item_features=item_features)
     temp = live_item_df.copy()
     temp['score'] = predictions
     temp = temp.sort_values(by='score', ascending=False, inplace=False)
