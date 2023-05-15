@@ -81,9 +81,11 @@ async def demand_predictions(sid, data):
         print(sorted_predictions)
     except Exception as e:
         print(e)
-    else:
         sorted_predictions = predict_all_items_sorted(userid)
+        print(sorted_predictions)
         await sio_server.emit('my_response', {'data': sorted_predictions, 'count': 0}, room=sid)
+
+
 
     """#todo else lagana hai
     if records == []:
@@ -106,10 +108,10 @@ async def demand_predictions(sid, data):
     temp_indices=indices.copy()
     temp_indices.sort()
     temp_predictions=predict_knn(temp_indices, userid)
-    print_audio(indices=temp_indices,predictions=temp_predictions)
+    print_audio(indices=temp_indices,predictions=temp_predictions)"""
     #fixme
     end = timer()
-    print("-----------------------", end - start ,"-----------------------")"""
+    print("-----------------------", end - start ,"-----------------------")
     await sio_server.emit('my_response', {'data': sorted_predictions}, room=sid)
 
 @sio_server.event

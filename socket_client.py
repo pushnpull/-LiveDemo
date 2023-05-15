@@ -28,9 +28,9 @@ async def main():
     # await sio_client.my_response("view this in the console")
     # await sio_client.emit('demand_predictions', {'userid':9999998})
     for i in range(20):
-        await sio_client.emit('demand_predictions', {'userid':255988})
-        asyncio.sleep(0.1)
-        await sio_client.emit('submit_interections', {'userid':255988, 'itemid': random.choice(live_item_list)})
+        await sio_client.emit('demand_predictions', {'userid':2559888})
+        # asyncio.sleep(0.1)
+        await sio_client.emit('submit_interections', {'userid':2559888, 'itemid': random.choice(live_item_list)})
         
         
 

@@ -1,5 +1,6 @@
 import csv
 import io
+import os
 import re
 import math
 import pickle
@@ -57,7 +58,7 @@ def cnxs():
 # create an SQLAlchemy engine
 engine = create_engine("mysql+pymysql://root:root@localhost:3306/chilling")
 
-app = FastAPI()
+
 
 likes,likes_created_at,likes_updated_at = None,'1000-01-01 00:00:00', '1000-01-01 00:00:00'
 favourites, favourites_created_at, favourites_updated_at= None,'1000-01-01 00:00:00', '1000-01-01 00:00:00'
@@ -65,6 +66,82 @@ audio,audio_created_at, audio_updated_at = None,'1000-01-01 00:00:00', '1000-01-
 users,users_created_at, users_updated_at = None,'1000-01-01 00:00:00', '1000-01-01 00:00:00'
 likes_fav,likes_fav_created_at, likes_fav_updated_at = None,'1000-01-01 00:00:00', '1000-01-01 00:00:00'
 
+
+app = FastAPI()
+
+
+
+
+global_variables = {
+    'dataset': 'dataset.pkl',
+    'model': 'model.pkl',
+    'knn_model': 'knn_model.pkl',
+    'item_representation': 'item_representation.pkl',
+    'item_representation_masked': 'item_representation_masked.pkl',
+    'mask': 'mask.pkl',
+    'item_features': 'item_features.pkl',
+    'user_features': 'user_features.pkl',
+    'usermap': 'usermap.pkl',
+    'unique_users': 'unique_users.pkl',
+    'live_item_list': 'live_item_list.pkl',
+    'live_item_df': 'live_item_df.pkl',
+    'highest_user_id': 'highest_user_id.pkl',
+    'highest_item_id': 'highest_item_id.pkl',
+    'likes': 'likes.pkl',
+    'likes_created_at': 'likes_created_at.pkl',
+    'likes_updated_at': 'likes_updated_at.pkl',
+    'favourites': 'favourites.pkl',
+    'favourites_created_at': 'favourites_created_at.pkl',
+    'favourites_updated_at': 'favourites_updated_at.pkl',
+    'audio': 'audio.pkl',
+    'audio_created_at': 'audio_created_at.pkl',
+    'audio_updated_at': 'audio_updated_at.pkl',
+    'users': 'users.pkl',
+    'users_created_at': 'users_created_at.pkl',
+    'users_updated_at': 'users_updated_at.pkl',
+    'likes_fav': 'likes_fav.pkl',
+    'likes_fav_created_at': 'likes_fav_created_at.pkl',
+    'likes_fav_updated_at': 'likes_fav_updated_at.pkl'
+}
+
+for var_name, file_name in global_variables.items():
+    file_path = os.path.join(os.getcwd(), "pickles", file_name)
+    if os.path.isfile(file_path):
+        try:
+            with open(file_path, "rb") as f:
+                globals()[var_name] = pickle.load(f)
+                print(f"Loaded pickled file: {file_path}")
+        except ModuleNotFoundError:
+            with open(file_path, "rb") as f:
+                globals()[var_name] = pd.read_pickle(f)
+                print(f"Loaded pickled file: {file_path}")
+        except pickle.UnpicklingError:
+            print(f"Error: File is corrupted: {file_path}")
+    else:
+        print(f"Error: File not found: {file_path}")
+
+
+
+
+@app.get("/load-eveything")
+async def load_everything():
+    global global_variables
+
+    for var_name, file_name in global_variables.items():
+        file_path = os.path.join(os.getcwd(), "pickles", file_name)
+        if os.path.isfile(file_path):
+            try:
+                with open(file_path, "rb") as f:
+                    globals()[var_name] = pickle.load(f)
+                    print(f"Loaded pickled file: {file_path}")
+            except ModuleNotFoundError:
+                with open(file_path, "rb") as f:
+                    globals()[var_name] = pd.read_pickle(f)
+                    print(f"Loaded pickled file: {file_path}")
+            except pickle.UnpicklingError:
+                print(f"Error: File is corrupted: {file_path}")
+        else:
+            print(f"Error: File not found: {file_path}")
 
 
 @app.get("/likes-data")
@@ -78,6 +155,12 @@ async def likes_data():
     likes_created_at = likes['created_at'].max()
     likes_updated_at = likes['updated_at'].max()
 
+    _ = ['likes','likes_created_at', 'likes_updated_at']
+    for var in _: 
+        file_path = os.path.join(os.getcwd(), "pickles", f"{var}.pkl")
+        with open(file_path, "w+b") as f:
+            pickle.dump(globals()[var], f)
+            print(f"Saved pickled file: {file_path}")
     # Return success message
     return {"message": "Data saved to file successfully!"}
 
@@ -100,6 +183,12 @@ async def update_likes():
     likes_created_at = likes['created_at'].max()
     likes_updated_at = likes['updated_at'].max()
 
+    _ = ['likes','likes_created_at', 'likes_updated_at']
+    for var in _:
+        file_path = os.path.join(os.getcwd(), "pickles", f"{var}.pkl")
+        with open(file_path, "w+b") as f:
+            pickle.dump(globals()[var], f)
+            print(f"Saved pickled file: {file_path}")
     # Return success message
     return {"message": "Data saved to file successfully!"}
 
@@ -116,6 +205,14 @@ async def favorites_data():
     favourites_updated_at = favourites['updated_at'].max()
     print(favourites.shape[0])
     # Return success message
+
+    _ = ['favourites','favourites_created_at', 'favourites_updated_at']
+    for var in _:
+        file_path = os.path.join(os.getcwd(), "pickles", f"{var}.pkl")
+        with open(file_path, "w+b") as f:
+            pickle.dump(globals()[var], f)
+            print(f"Saved pickled file: {file_path}")
+
     return {"message": "Data saved to file successfully!"}
 
 
@@ -138,6 +235,13 @@ async def update_favorites():
     # Update variables to keep track of last updated row
     favourites_created_at = favourites['created_at'].max()
     favourites_updated_at = favourites['updated_at'].max()
+
+    _ = ['favourites','favourites_created_at', 'favourites_updated_at']
+    for var in _:
+        file_path = os.path.join(os.getcwd(), "pickles", f"{var}.pkl")
+        with open(file_path, "w+b") as f:
+            pickle.dump(globals()[var], f)
+            print(f"Saved pickled file: {file_path}")
 
     # Return success message
     return {"message": "Data saved to file successfully!"}
@@ -163,6 +267,12 @@ async def audio_data():
     print(audio.shape[0])
     print(audio.head())
     # Return success message
+    _ = ['audio','audio_created_at', 'audio_updated_at']
+    for var in _:
+        file_path = os.path.join(os.getcwd(), "pickles", f"{var}.pkl")
+        with open(file_path, "w+b") as f:
+            pickle.dump(globals()[var], f)
+            print(f"Saved pickled file: {file_path}")
     return {"message": "Data saved to file successfully!"}
 
 
@@ -191,6 +301,12 @@ async def update_audio():
     audio_created_at = audio['created_at'].max()
     audio_updated_at = audio['updated_at'].max()
 
+    _ = ['audio','audio_created_at', 'audio_updated_at']
+    for var in _:
+        file_path = os.path.join(os.getcwd(), "pickles", f"{var}.pkl")
+        with open(file_path, "w+b") as f:
+            pickle.dump(globals()[var], f)
+            print(f"Saved pickled file: {file_path}")
     # Return success message
     return {"message": "Data saved to file successfully!"}
 
@@ -210,6 +326,13 @@ async def users_data():
     print(users.shape[0])
     print(users.head())
     # Return success message
+    _ = ['users','users_created_at', 'users_updated_at']
+    for var in _:
+        file_path = os.path.join(os.getcwd(), "pickles", f"{var}.pkl")
+        with open(file_path, "w+b") as f:
+            pickle.dump(globals()[var], f)
+            print(f"Saved pickled file: {file_path}")
+
     return {"message": "Data saved to file successfully!"}
 
 
@@ -231,6 +354,12 @@ async def update_users():
     users_created_at = users['created_at'].max()
     users_updated_at = users['updated_at'].max()
 
+    _ = ['users','users_created_at', 'users_updated_at']
+    for var in _:
+        file_path = os.path.join(os.getcwd(), "pickles", f"{var}.pkl")
+        with open(file_path, "w+b") as f:
+            pickle.dump(globals()[var], f)
+            print(f"Saved pickled file: {file_path}")
     # Return success message
     return {"message": "Data saved to file successfully!"}
 
@@ -264,6 +393,13 @@ async def likes_favourites():
     print(likes_fav.shape[0])
     print(likes_fav.head())
     # Return success message
+    _ = ['likes_fav','likes_fav_created_at', 'likes_fav_updated_at']
+    for var in _:
+        file_path = os.path.join(os.getcwd(), "pickles", f"{var}.pkl")
+        with open(file_path, "w+b") as f:
+            pickle.dump(globals()[var], f)
+            print(f"Saved pickled file: {file_path}")
+
     return {"message": "Data saved to file successfully!"}
 
 
@@ -301,6 +437,12 @@ async def update_likes_fav():
     likes_fav_created_at = likes_fav['created_at'].max()
     likes_fav_updated_at = likes_fav['updated_at'].max()
 
+    _ = ['likes_fav','likes_fav_created_at', 'likes_fav_updated_at']
+    for var in _:
+        file_path = os.path.join(os.getcwd(), "pickles", f"{var}.pkl")
+        with open(file_path, "w+b") as f:
+            pickle.dump(globals()[var], f)
+            print(f"Saved pickled file: {file_path}")
     # Return success message
     return {"message": "Data saved to file successfully!"} 
 
@@ -325,6 +467,12 @@ async def alluser():
     unique_users = alls.unique()
     usermap = {value: key for key, value in temp.items()}
 
+    _ = ['unique_users','highest_user_id','usermap']
+    for var in _:
+        file_path = os.path.join(os.getcwd(), "pickles", f"{var}.pkl")
+        with open(file_path, "w+b") as f:
+            pickle.dump(globals()[var], f)
+            print(f"Saved pickled file: {file_path}")
  
 
 async def item_user_feature_list_and_datasetfit():
@@ -348,7 +496,12 @@ async def item_user_feature_list_and_datasetfit():
             ,item_features=item_features_list 
             ,user_features=item_features_list)
     print(dataset)
-
+    _ = ['live_item_list','live_item_df','highest_item_id']
+    for var in _:
+        file_path = os.path.join(os.getcwd(), "pickles", f"{var}.pkl")
+        with open(file_path, "w+b") as f:
+            pickle.dump(globals()[var], f)
+            print(f"Saved pickled file: {file_path}")
 
 async def item_feature_generation():
     global audio,dataset,item_features
@@ -357,6 +510,13 @@ async def item_feature_generation():
 
     item_features = dataset.build_item_features(item_features_raw)
     print(item_features)
+
+    _ = ['item_features']
+    for var in _:
+        file_path = os.path.join(os.getcwd(), "pickles", f"{var}.pkl")
+        with open(file_path, "w+b") as f:
+            pickle.dump(globals()[var], f)
+            print(f"Saved pickled file: {file_path}")
 
 
 # async def user_feature_generation():
@@ -404,6 +564,12 @@ async def user_feature_generation():
     user_features = dataset.build_user_features(user_features_raw)
     print(user_features)
 
+    _ = ['user_features']
+    for var in _:
+        file_path = os.path.join(os.getcwd(), "pickles", f"{var}.pkl")
+        with open(file_path, "w+b") as f:
+            pickle.dump(globals()[var], f)
+            print(f"Saved pickled file: {file_path}")
 
 
 async def interaction_matrix_generation():
@@ -419,6 +585,12 @@ async def interaction_matrix_generation():
 )
     model.fit(interactions, item_features=item_features, user_features=user_features, sample_weight=weights,epochs=5)
     print(model)
+    _ = ['dataset','model']
+    for var in _:
+        file_path = os.path.join(os.getcwd(), "pickles", f"{var}.pkl")
+        with open(file_path, "w+b") as f:
+            pickle.dump(globals()[var], f)
+            print(f"Saved pickled file: {file_path}")
 
 #todo
 async def knn():
@@ -449,6 +621,13 @@ async def knn():
     # item_representation_for_knn=np.delete(item_representation, list(deleted_items), axis=0)
     # print(len(item_representation_for_knn))
     knn_model.fit(item_representation_masked)
+
+    _ = ['knn_model','item_representation','item_representation_masked','mask']
+    for var in _:
+        file_path = os.path.join(os.getcwd(), "pickles", f"{var}.pkl")
+        with open(file_path, "w+b") as f:
+            pickle.dump(globals()[var], f)
+            print(f"Saved pickled file: {file_path}")
 
 #todo
 def convert_itemlist_to_vector_list(item_list):
