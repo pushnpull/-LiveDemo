@@ -1,5 +1,4 @@
 import socketio
-import redis
 from timeit import default_timer as timer
 import numpy as np
 from finals import convert_itemlist_to_vector_list,calculate_vector,fetch_knn , predict_knn,predict_all_items_sorted,print_audio,redis_guard_for_new_items
@@ -9,7 +8,12 @@ day_in_ms = 86400000
 sio_server = socketio.AsyncServer(async_mode='asgi',cross_allowed_origins=[])
 sio_app = socketio.ASGIApp(socketio_server=sio_server,socketio_path='/sockets')
 
-r = redis.Redis(host='192.168.216.207', port=6379, db=0,decode_responses=True)
+
+import redis
+from redis import ConnectionPool
+
+pool = ConnectionPool(host='192.168.216.207', port=6379, db=0, decode_responses=True)
+r = redis.Redis(connection_pool=pool)
 ts=r.ts()
 
 
